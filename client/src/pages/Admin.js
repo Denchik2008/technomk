@@ -697,9 +697,14 @@ function Admin() {
                         </div>
                         <div className="order-actions">
                           {order.status === 'under_review' && (
-                            <button className="btn btn-primary" onClick={() => handleOrderStatusChange(order.id, 'awaiting_payment')}>
-                              <span className="material-icons">schedule</span>Перевести в ожидание
-                            </button>
+                            <>
+                              <button className="btn btn-primary" onClick={() => handleOrderStatusChange(order.id, 'awaiting_payment')}>
+                                <span className="material-icons">schedule</span>Перевести в ожидание
+                              </button>
+                              <button className="btn btn-warning" onClick={() => handleOrderStatusChange(order.id, 'cancelled')}>
+                                <span className="material-icons">cancel</span>Отменить
+                              </button>
+                            </>
                           )}
                           {order.status === 'pending' && (
                             <>

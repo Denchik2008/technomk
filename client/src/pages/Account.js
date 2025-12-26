@@ -5,6 +5,7 @@ import './Account.css';
 function Account({ user, setUser }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [orderFilter, setOrderFilter] = useState('все');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,6 +66,27 @@ function Account({ user, setUser }) {
       navigate('/');
     }
   };
+  const handleOrderStatusSetCencelled = async (orderId) => {
+    // Подтверждение при отмене заказа
+    if (!window.confirm('Вы уверены, что хотите отменить этот заказ?')) {
+        return;
+    }
+
+    try {
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' })
+      });
+      if (response.ok) {
+        alert('Статус заказа обновлен!');
+        fetchOrders();
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert('Ошибка при обновлении статуса');
+    }
+  };
 
   const getStatusLabel = (status) => {
     const statuses = {
@@ -90,6 +112,23 @@ function Account({ user, setUser }) {
     return classes[status] || '';
   };
 
+  const filterOrders = (orders) => {
+    if (orderFilter === 'все') {
+      return orders;
+    } else if (orderFilter === 'завершенные') {
+      return orders.filter(order => 
+        order.status === 'completed' || order.status === 'cancelled'
+      );
+    } else if (orderFilter === 'активные') {
+      return orders.filter(order => 
+        order.status === 'under_review' || 
+        order.status === 'awaiting_payment' || 
+        order.status === 'pending'
+      );
+    }
+    return orders;
+  };
+
   if (!user) {
     return null;
   }
@@ -108,7 +147,21 @@ function Account({ user, setUser }) {
         </div>
 
         <div className="account-section">
-          <h2>Мои заказы</h2>
+          <div className="orders-header">
+            <h2>Мои заказы</h2>
+            <div className="order-filter">
+              <label>Посмотреть заказы: </label>
+              <select 
+                value={orderFilter} 
+                onChange={(e) => setOrderFilter(e.target.value)}
+                className="filter-select"
+              >
+                <option value="все">Все</option>
+                <option value="активные">Активные</option>
+                <option value="завершенные">Завершенные</option>
+              </select>
+            </div>
+          </div>
           
           {loading ? (
             <div className="loading">Загрузка заказов...</div>
@@ -117,9 +170,13 @@ function Account({ user, setUser }) {
               <p>У вас пока нет заказов</p>
               <a href="/all-products" className="btn btn-primary">Перейти к покупкам</a>
             </div>
+          ) : filterOrders(orders).length === 0 ? (
+            <div className="empty-orders">
+              <p>Нет заказов в выбранной категории</p>
+            </div>
           ) : (
             <div className="orders-list">
-              {orders.map(order => (
+              {filterOrders(orders).map(order => (
                 <div key={order.id} className="order-card">
                   <div className="order-header">
                     <div className="order-info">
@@ -179,6 +236,14 @@ function Account({ user, setUser }) {
                       >
                         <span className="material-icons">payment</span>
                         Оплатить
+                      </button>
+
+                      <button 
+                        className="btn btn-warning" 
+                        onClick={() => handleOrderStatusSetCencelled(order.id)}
+                      >
+                        <span className="material-icons">cancel</span>
+                        Отменить
                       </button>
                     </div>
                   )}
