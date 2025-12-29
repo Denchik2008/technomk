@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import AuthModal from './components/AuthModal';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import Home from './pages/Home';
 import AllProducts from './pages/AllProducts';
@@ -17,10 +18,12 @@ import Admin from './pages/Admin';
 import ProductDetail from './pages/ProductDetail';
 import './App.css';
 
-function App() {
+function AppContent() {
   const [cart, setCart] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [user, setUser] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const savedCart = localStorage.getItem('cart');
@@ -36,6 +39,16 @@ function App() {
       setUser(JSON.parse(savedUser));
     }
   }, []);
+
+  useEffect(() => {
+    // Проверяем, нужно ли показывать модальное окно авторизации
+    const isAdminRoute = location.pathname.startsWith('/admin');
+    if (!user && !isAdminRoute) {
+      setShowAuthModal(true);
+    } else {
+      setShowAuthModal(false);
+    }
+  }, [user, location]);
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
@@ -85,30 +98,42 @@ function App() {
     }
   };
 
+  const handleAuthSuccess = (userData) => {
+    setUser(userData);
+    setShowAuthModal(false);
+  };
+
+  return (
+    <div className="App">
+      {showAuthModal && <AuthModal onAuthSuccess={handleAuthSuccess} />}
+      <Header cartCount={cart.length} favoritesCount={favorites.length} user={user} />
+      <Routes>
+        <Route path="/" element={<Home addToCart={addToCart} toggleFavorite={toggleFavorite} favorites={favorites} />} />
+        <Route path="/all-products" element={<AllProducts addToCart={addToCart} toggleFavorite={toggleFavorite} favorites={favorites} />} />
+        <Route path="/category/:categoryId" element={<Subcategories />} />
+        <Route path="/subcategory/:subcategoryId/products" element={<SubcategoryProducts addToCart={addToCart} toggleFavorite={toggleFavorite} favorites={favorites} />} />
+        <Route path="/product/:id" element={<ProductDetail addToCart={addToCart} />} />
+        <Route path="/cart" element={<Cart cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} clearCart={clearCart} user={user} />} />
+        <Route path="/login" element={<Login setUser={setUser} />} />
+        <Route path="/register" element={<Register setUser={setUser} />} />
+        <Route path="/account" element={<Account user={user} setUser={setUser} />} />
+        <Route path="/contact" element={<Contacts />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin" element={
+          <ProtectedAdminRoute>
+            <Admin />
+          </ProtectedAdminRoute>
+        } />
+      </Routes>
+      <Footer />
+    </div>
+  );
+}
+
+function App() {
   return (
     <Router>
-      <div className="App">
-        <Header cartCount={cart.length} favoritesCount={favorites.length} user={user} />
-        <Routes>
-          <Route path="/" element={<Home addToCart={addToCart} toggleFavorite={toggleFavorite} favorites={favorites} />} />
-          <Route path="/all-products" element={<AllProducts addToCart={addToCart} toggleFavorite={toggleFavorite} favorites={favorites} />} />
-          <Route path="/category/:categoryId" element={<Subcategories />} />
-          <Route path="/subcategory/:subcategoryId/products" element={<SubcategoryProducts addToCart={addToCart} toggleFavorite={toggleFavorite} favorites={favorites} />} />
-          <Route path="/product/:id" element={<ProductDetail addToCart={addToCart} />} />
-          <Route path="/cart" element={<Cart cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} clearCart={clearCart} user={user} />} />
-          <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route path="/register" element={<Register setUser={setUser} />} />
-          <Route path="/account" element={<Account user={user} setUser={setUser} />} />
-          <Route path="/contact" element={<Contacts />} />
-          <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="/admin" element={
-            <ProtectedAdminRoute>
-              <Admin />
-            </ProtectedAdminRoute>
-          } />
-        </Routes>
-        <Footer />
-      </div>
+      <AppContent />
     </Router>
   );
 }

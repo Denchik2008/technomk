@@ -60,21 +60,96 @@
   color: #ff5722;
 }
 
-.newsletter {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.newsletter input {
-  padding: 12px;
+.info-link {
+  background: none;
   border: none;
-  border-radius: 4px;
-  font-size: 14px;
+  color: #bdc3c7;
+  cursor: pointer;
+  padding: 0;
+  font-size: 16px;
+  text-align: left;
+  transition: color 0.3s;
+  font-family: inherit;
 }
 
-.newsletter button {
-  align-self: flex-start;
+.info-link:hover {
+  color: #ff5722;
+}
+
+/* Модальное окно для информации */
+.info-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.info-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.info-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.info-modal-header h2 {
+  color: #564c6d;
+  font-size: 24px;
+  margin: 0;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  color: #666;
+  transition: color 0.3s;
+}
+
+.close-modal-btn:hover {
+  color: #eb781f;
+}
+
+.close-modal-btn .material-icons {
+  font-size: 28px;
+}
+
+.info-modal-body {
+  padding: 32px;
+  color: #333;
+  line-height: 1.8;
+}
+
+.info-modal-body p {
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+}
+
+.info-modal-footer {
+  padding: 20px 32px;
+  border-top: 2px solid #f0f0f0;
+  text-align: right;
 }
 
 .footer-bottom {
@@ -94,8 +169,18 @@
     gap: 30px;
   }
 
-  .newsletter button {
-    align-self: stretch;
+  .info-modal-header {
+    padding: 20px;
+  }
+
+  .info-modal-body {
+    padding: 20px;
+  }
+
+  .info-modal-footer {
+    padding: 16px 20px;
   }
 }
+
+
 

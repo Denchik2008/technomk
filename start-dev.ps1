@@ -14,3 +14,5 @@ Write-Host "Client will run on: http://localhost:3000" -ForegroundColor Cyan
 # Start the servers
 npm run dev
 
+
+

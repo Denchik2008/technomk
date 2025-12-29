@@ -7,10 +7,20 @@ const fs = require('fs');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = 5000;
 const JWT_SECRET = 'techno_center_secret_key_2024';
+
+// Email configuration
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'tehnomk24@mail.ru', // Это будет отправитель (настраивается администратором)
+    pass: 'your_app_password_here' // Это нужно заменить на реальный пароль приложения
+  }
+});
 
 // Middleware
 app.use(cors());
@@ -191,19 +201,48 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 });
 
 // Contact Form API
-app.post('/api/contact', upload.single('attachment'), (req, res) => {
+app.post('/api/contact', upload.single('attachment'), async (req, res) => {
   try {
     const { name, email, phone, message } = req.body;
     const attachment = req.file ? `/uploads/${req.file.filename}` : null;
     
+    // Сохраняем в базу данных
     const result = db.prepare(
       'INSERT INTO contact_messages (name, email, phone, message, attachment) VALUES (?, ?, ?, ?, ?)'
     ).run(name, email, phone, message, attachment);
     
-    console.log('Contact message received:', { name, email, phone, message, attachment });
-    res.json({ id: result.lastInsertRowid, message: 'Сообщение отправлено успешно!' });
+    // Отправляем email на daniilcencenko947@gmail.com
+    try {
+      const mailOptions = {
+        from: 'tehnomk24@mail.ru',
+        to: 'daniilcencenko947@gmail.com',
+        subject: `Новое сообщение от ${name}`,
+        html: `
+          <h2>Новое сообщение с формы обратной связи</h2>
+          <p><strong>Имя:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Телефон:</strong> ${phone}</p>
+          <p><strong>Сообщение:</strong></p>
+          <p>${message}</p>
+          ${attachment ? `<p><strong>Прикреплен файл:</strong> ${attachment}</p>` : ''}
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log('Email sent successfully to daniilcencenko947@gmail.com');
+      res.json({ id: result.lastInsertRowid, message: 'Сообщение отправлено' });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      // Даже если email не отправился, сообщение сохранено в БД
+      res.json({ 
+        id: result.lastInsertRowid, 
+        message: 'Сообщение не отправлено, попробуйте позже',
+        emailError: true 
+      });
+    }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Contact form error:', error);
+    res.status(500).json({ error: 'Сообщение не отправлено, попробуйте позже' });
   }
 });
 

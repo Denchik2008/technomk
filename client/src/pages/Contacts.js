@@ -30,10 +30,7 @@ function Contacts() {
     setSuccess(false);
     setLoading(true);
 
-    // Пока что просто выводим в консоль
     console.log('привет');
-    console.log('Form data:', formData);
-    console.log('File:', file);
 
     try {
       const formDataToSend = new FormData();
@@ -53,17 +50,23 @@ function Contacts() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка отправки сообщения');
+        setError('Сообщение не отправлено, попробуйте позже');
+        return;
       }
 
-      setSuccess(true);
-      setFormData({ name: '', email: '', phone: '', message: '' });
-      setFile(null);
-      // Reset file input
-      const fileInput = document.getElementById('file-input');
-      if (fileInput) fileInput.value = '';
+      // Проверяем, была ли ошибка при отправке email
+      if (data.emailError) {
+        setError('Сообщение не отправлено, попробуйте позже');
+      } else {
+        setSuccess(true);
+        setFormData({ name: '', email: '', phone: '', message: '' });
+        setFile(null);
+        // Reset file input
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) fileInput.value = '';
+      }
     } catch (err) {
-      setError(err.message);
+      setError('Сообщение не отправлено, попробуйте позже');
     } finally {
       setLoading(false);
     }
@@ -80,23 +83,23 @@ function Contacts() {
               <span className="material-icons">location_on</span>
               <div>
                 <h3>Адрес</h3>
-                <p>г. Красноярск, ул. Примерная, 123</p>
+                <p>г. Красноярск, ул. Корнеева, 50</p>
               </div>
             </div>
 
-            <div className="contact-item">
+            {/* <div className="contact-item">
               <span className="material-icons">phone</span>
               <div>
                 <h3>Телефон</h3>
                 <p>+7 (123) 456-78-90</p>
               </div>
-            </div>
+            </div> */}
 
             <div className="contact-item">
               <span className="material-icons">email</span>
               <div>
                 <h3>Email</h3>
-                <p>info@tehnomiks.ru</p>
+                <p>technomk@gmail.com</p>
               </div>
             </div>
 
@@ -116,7 +119,7 @@ function Contacts() {
             {success && (
               <div className="success-message">
                 <span className="material-icons">check_circle</span>
-                Сообщение успешно отправлено! Мы свяжемся с вами в ближайшее время.
+                Сообщение отправлено
               </div>
             )}
 
@@ -213,4 +216,6 @@ function Contacts() {
 }
 
 export default Contacts;
+
+
 

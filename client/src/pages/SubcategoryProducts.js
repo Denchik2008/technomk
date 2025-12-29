@@ -211,3 +211,5 @@ function SubcategoryProducts({ addToCart, toggleFavorite, favorites }) {
 
 export default SubcategoryProducts;
 
+
+
