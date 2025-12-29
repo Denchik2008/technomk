@@ -17,8 +17,8 @@ const JWT_SECRET = 'techno_center_secret_key_2024';
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'tehnomk24@mail.ru', // Это будет отправитель (настраивается администратором)
-    pass: 'your_app_password_here' // Это нужно заменить на реальный пароль приложения
+    user: 'daniilcencenko947@gmail.com',
+    pass: 'ikzreihywtgrbmhs' // Пароль приложения Gmail
   }
 });
 
@@ -202,19 +202,27 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 
 // Contact Form API
 app.post('/api/contact', upload.single('attachment'), async (req, res) => {
+  console.log('=== CONTACT FORM REQUEST RECEIVED ===');
+  console.log('Body:', req.body);
+  console.log('File:', req.file);
+  
   try {
     const { name, email, phone, message } = req.body;
     const attachment = req.file ? `/uploads/${req.file.filename}` : null;
+    
+    console.log('Parsed data:', { name, email, phone, message, attachment });
     
     // Сохраняем в базу данных
     const result = db.prepare(
       'INSERT INTO contact_messages (name, email, phone, message, attachment) VALUES (?, ?, ?, ?, ?)'
     ).run(name, email, phone, message, attachment);
     
+    console.log('Saved to database with ID:', result.lastInsertRowid);
+    
     // Отправляем email на daniilcencenko947@gmail.com
     try {
       const mailOptions = {
-        from: 'tehnomk24@mail.ru',
+        from: 'daniilcencenko947@gmail.com',
         to: 'daniilcencenko947@gmail.com',
         subject: `Новое сообщение от ${name}`,
         html: `
