@@ -17,8 +17,8 @@ const JWT_SECRET = 'techno_center_secret_key_2024';
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'daniilcencenko947@gmail.com',
-    pass: 'ikzreihywtgrbmhs' // Пароль приложения Gmail
+    user: 'technomk24@gmail.com',
+    pass: 'dpsuyhpqvwbpkxsn' // Пароль приложения Gmail
   }
 });
 
@@ -201,29 +201,27 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
 });
 
 // Contact Form API
-app.post('/api/contact', upload.single('attachment'), async (req, res) => {
+app.post('/api/contact', async (req, res) => {
   console.log('=== CONTACT FORM REQUEST RECEIVED ===');
   console.log('Body:', req.body);
-  console.log('File:', req.file);
   
   try {
     const { name, email, phone, message } = req.body;
-    const attachment = req.file ? `/uploads/${req.file.filename}` : null;
     
-    console.log('Parsed data:', { name, email, phone, message, attachment });
+    console.log('Parsed data:', { name, email, phone, message });
     
     // Сохраняем в базу данных
     const result = db.prepare(
       'INSERT INTO contact_messages (name, email, phone, message, attachment) VALUES (?, ?, ?, ?, ?)'
-    ).run(name, email, phone, message, attachment);
+    ).run(name, email, phone, message, null);
     
     console.log('Saved to database with ID:', result.lastInsertRowid);
     
     // Отправляем email на daniilcencenko947@gmail.com
     try {
       const mailOptions = {
-        from: 'daniilcencenko947@gmail.com',
-        to: 'daniilcencenko947@gmail.com',
+        from: 'technomk24@gmail.com',
+        to: 'technomk24@gmail.com',
         subject: `Новое сообщение от ${name}`,
         html: `
           <h2>Новое сообщение с формы обратной связи</h2>
@@ -232,7 +230,6 @@ app.post('/api/contact', upload.single('attachment'), async (req, res) => {
           <p><strong>Телефон:</strong> ${phone}</p>
           <p><strong>Сообщение:</strong></p>
           <p>${message}</p>
-          ${attachment ? `<p><strong>Прикреплен файл:</strong> ${attachment}</p>` : ''}
         `
       };
 

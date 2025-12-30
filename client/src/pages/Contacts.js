@@ -8,7 +8,6 @@ function Contacts() {
     phone: '',
     message: ''
   });
-  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -20,10 +19,6 @@ function Contacts() {
     });
   };
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -33,37 +28,25 @@ function Contacts() {
     console.log('привет');
 
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('message', formData.message);
-      if (file) {
-        formDataToSend.append('attachment', file);
-      }
-
       const response = await fetch('/api/contact', {
         method: 'POST',
-        body: formDataToSend
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
-
       const data = await response.json();
-
+      console.log(data);
+      
       if (!response.ok) {
         setError('Сообщение не отправлено, попробуйте позже');
         return;
       }
-
+      
       // Проверяем, была ли ошибка при отправке email
       if (data.emailError) {
         setError('Сообщение не отправлено, попробуйте позже');
       } else {
         setSuccess(true);
         setFormData({ name: '', email: '', phone: '', message: '' });
-        setFile(null);
-        // Reset file input
-        const fileInput = document.getElementById('file-input');
-        if (fileInput) fileInput.value = '';
       }
     } catch (err) {
       setError('Сообщение не отправлено, попробуйте позже');
@@ -99,7 +82,7 @@ function Contacts() {
               <span className="material-icons">email</span>
               <div>
                 <h3>Email</h3>
-                <p>technomk@gmail.com</p>
+                <p>technomk24@gmail.com</p>
               </div>
             </div>
 
@@ -185,23 +168,6 @@ function Contacts() {
                   rows="5"
                   placeholder="Опишите ваш вопрос или пожелание"
                 />
-              </div>
-
-              <div className="form-group">
-                <label>Прикрепить файл</label>
-                <div className="file-input-wrapper">
-                  <input
-                    type="file"
-                    id="file-input"
-                    onChange={handleFileChange}
-                    accept="image/*,.pdf,.doc,.docx"
-                  />
-                  <label htmlFor="file-input" className="file-input-label">
-                    <span className="material-icons">attach_file</span>
-                    {file ? file.name : 'Выберите файл'}
-                  </label>
-                </div>
-                <p className="file-hint">Максимальный размер файла: 5 МБ</p>
               </div>
 
               <button type="submit" className="btn btn-primary" disabled={loading}>
