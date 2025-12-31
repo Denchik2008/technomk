@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import './Account.css';
 
-function Account({ user, setUser }) {
+function Account({ user, setUser, favorites, toggleFavorite }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderFilter, setOrderFilter] = useState('все');
+  const [activeTab, setActiveTab] = useState('orders');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -146,10 +147,28 @@ function Account({ user, setUser }) {
           </button>
         </div>
 
-        <div className="account-section">
-          <div className="orders-header">
-            <h2>Мои заказы</h2>
-            <div className="order-filter">
+        <div className="account-tabs">
+          <button 
+            className={`tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
+            onClick={() => setActiveTab('orders')}
+          >
+            <span className="material-icons">shopping_bag</span>
+            Мои заказы
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'favorites' ? 'active' : ''}`}
+            onClick={() => setActiveTab('favorites')}
+          >
+            <span className="material-icons">favorite</span>
+            Понравившиеся
+          </button>
+        </div>
+
+        {activeTab === 'orders' ? (
+          <div className="account-section">
+            <div className="orders-header">
+              <h2>Мои заказы</h2>
+              <div className="order-filter">
               <label>Посмотреть заказы: </label>
               <select 
                 value={orderFilter} 
@@ -251,7 +270,65 @@ function Account({ user, setUser }) {
               ))}
             </div>
           )}
-        </div>
+          </div>
+        ) : (
+          <div className="account-section">
+            <h2>Понравившиеся товары</h2>
+            
+            {!favorites || favorites.length === 0 ? (
+              <div className="empty-favorites">
+                <span className="material-icons large-icon">favorite_border</span>
+                <p>У вас пока нет понравившихся товаров</p>
+                <Link to="/all-products" className="btn btn-primary">Перейти к покупкам</Link>
+              </div>
+            ) : (
+              <div className="favorites-grid">
+                {favorites.map(product => (
+                  <div key={product.id} className="favorite-card">
+                    <button 
+                      className="btn-remove-favorite"
+                      onClick={() => toggleFavorite(product)}
+                      title="Удалить из избранного"
+                    >
+                      <span className="material-icons">close</span>
+                    </button>
+                    
+                    <Link to={`/product/${product.id}`} className="favorite-link">
+                      {product.image ? (
+                        <img src={product.image} alt={product.name} className="favorite-image" />
+                      ) : (
+                        <div className="favorite-image-placeholder">
+                          <span className="material-icons">inventory_2</span>
+                        </div>
+                      )}
+                      
+                      <div className="favorite-info">
+                        <h3 className="favorite-name">{product.name}</h3>
+                        {product.description && (
+                          <p className="favorite-description">{product.description}</p>
+                        )}
+                        <div className="favorite-price">
+                          {product.price_from === 1 ? `от ${product.price}` : product.price} ₽
+                        </div>
+                      </div>
+                    </Link>
+                    
+                    <button 
+                      className="btn btn-primary btn-add-to-cart"
+                      onClick={() => {
+                        // Добавить в корзину (нужно передать функцию из App.js)
+                        alert('Товар добавлен в корзину');
+                      }}
+                    >
+                      <span className="material-icons">shopping_cart</span>
+                      В корзину
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

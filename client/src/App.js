@@ -116,7 +116,7 @@ function AppContent() {
         <Route path="/cart" element={<Cart cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} clearCart={clearCart} user={user} />} />
         <Route path="/login" element={<Login setUser={setUser} />} />
         <Route path="/register" element={<Register setUser={setUser} />} />
-        <Route path="/account" element={<Account user={user} setUser={setUser} />} />
+        <Route path="/account" element={<Account user={user} setUser={setUser} favorites={favorites} toggleFavorite={toggleFavorite} />} />
         <Route path="/contact" element={<Contacts />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin" element={
