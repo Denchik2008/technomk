@@ -14,8 +14,8 @@ module.exports = {
     },
     {
       name: 'technomk-client',
-      script: 'serve',
-      args: '-s build -p 3002',
+      script: 'npm',
+      args: 'run serve',
       cwd: './client',
       instances: 1,
       autorestart: true,
