@@ -14,16 +14,15 @@ module.exports = {
     },
     {
       name: 'technomk-client',
-      script: 'npm',
-      args: 'start',
+      script: 'serve',
+      args: '-s build -l 3002',
       cwd: './client',
       instances: 1,
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
+      max_memory_restart: '500M',
       env: {
-        NODE_ENV: 'production',
-        PORT: 3002
+        NODE_ENV: 'production'
       }
     }
   ]
