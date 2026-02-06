@@ -4,7 +4,7 @@ This project runs a single Node/Express server that also serves the React build.
 The server listens on port 5000 and should be placed behind Nginx.
 
 Files:
-- nginx/technomk.conf: HTTP server block for techno-mk.ru and www.techno-mk.ru
+- nginx/technomk.conf: HTTP server block for tehno-mk.ru and www.tehno-mk.ru
 
 Notes:
 - Use PM2 with `ecosystem.config.js` in the repo root.
