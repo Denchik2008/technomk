@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import AuthModal from './components/AuthModal';
@@ -23,7 +23,7 @@ function AppContent() {
   const [favorites, setFavorites] = useState([]);
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const location = useLocation();
+  const [pendingCartItem, setPendingCartItem] = useState(null);
 
   useEffect(() => {
     const savedCart = localStorage.getItem('cart');
@@ -40,15 +40,6 @@ function AppContent() {
     }
   }, []);
 
-  useEffect(() => {
-    // Проверяем, нужно ли показывать модальное окно авторизации
-    const isAdminRoute = location.pathname.startsWith('/admin');
-    if (!user && !isAdminRoute) {
-      setShowAuthModal(true);
-    } else {
-      setShowAuthModal(false);
-    }
-  }, [user, location]);
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
@@ -58,17 +49,27 @@ function AppContent() {
     localStorage.setItem('favorites', JSON.stringify(favorites));
   }, [favorites]);
 
+  const addItemToCart = (product) => {
+    setCart((prevCart) => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      if (existingItem) {
+        return prevCart.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prevCart, { ...product, quantity: 1 }];
+    });
+  };
+
   const addToCart = (product) => {
-    const existingItem = cart.find(item => item.id === product.id);
-    if (existingItem) {
-      setCart(cart.map(item =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+    if (!user) {
+      setPendingCartItem(product);
+      setShowAuthModal(true);
+      return;
     }
+    addItemToCart(product);
   };
 
   const removeFromCart = (productId) => {
@@ -101,12 +102,32 @@ function AppContent() {
   const handleAuthSuccess = (userData) => {
     setUser(userData);
     setShowAuthModal(false);
+    if (pendingCartItem) {
+      addItemToCart(pendingCartItem);
+      setPendingCartItem(null);
+    }
+  };
+
+  const handleAuthClose = () => {
+    setShowAuthModal(false);
+    setPendingCartItem(null);
+  };
+
+  const handleAccountClick = () => {
+    if (!user) {
+      setShowAuthModal(true);
+    }
   };
 
   return (
     <div className="App">
-      {showAuthModal && <AuthModal onAuthSuccess={handleAuthSuccess} />}
-      <Header cartCount={cart.length} favoritesCount={favorites.length} user={user} />
+      {showAuthModal && <AuthModal onAuthSuccess={handleAuthSuccess} onClose={handleAuthClose} />}
+      <Header
+        cartCount={cart.length}
+        favoritesCount={favorites.length}
+        user={user}
+        onAccountClick={handleAccountClick}
+      />
       <Routes>
         <Route path="/" element={<Home addToCart={addToCart} toggleFavorite={toggleFavorite} favorites={favorites} />} />
         <Route path="/all-products" element={<AllProducts addToCart={addToCart} toggleFavorite={toggleFavorite} favorites={favorites} />} />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './AuthModal.css';
 
-function AuthModal({ onAuthSuccess }) {
+function AuthModal({ onAuthSuccess, onClose }) {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
@@ -12,6 +12,12 @@ function AuthModal({ onAuthSuccess }) {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -116,6 +122,9 @@ function AuthModal({ onAuthSuccess }) {
     <div className="auth-modal-overlay">
       <div className="auth-modal">
         <div className="auth-modal-header">
+          <button type="button" className="auth-modal-close" onClick={handleClose} aria-label="???????">
+            <span className="material-icons">close</span>
+          </button>
           <h2>{isLogin ? 'Вход' : 'Регистрация'}</h2>
           <p className="auth-modal-subtitle">
             {isLogin ? 'Войдите, чтобы продолжить' : 'Создайте аккаунт, чтобы продолжить'}

@@ -68,7 +68,7 @@ function Home({ addToCart, toggleFavorite, favorites }) {
         </div>
       </section>
 
-      <section className="section">
+      {/* <section className="section">
         <div className="container">
           <div className="section-header">
             <h2 className="section-title">
@@ -88,7 +88,7 @@ function Home({ addToCart, toggleFavorite, favorites }) {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       <section className="section bg-light">
         <div className="container">

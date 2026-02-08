@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './Header.css';
 
-function Header({ cartCount, favoritesCount, user }) {
+function Header({ cartCount, favoritesCount, user, onAccountClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -40,10 +40,10 @@ function Header({ cartCount, favoritesCount, user }) {
                 <span>{user.name}</span>
               </Link>
             ) : (
-              <Link to="/login" className="contact-info user-link">
+              <button type="button" className="contact-info user-link user-button" onClick={onAccountClick}>
                 <span className="material-icons">login</span>
-                <span>Войти</span>
-              </Link>
+                <span>??????????</span>
+              </button>
             )}
           </div>
         </div>
