@@ -42,7 +42,7 @@ function Header({ cartCount, favoritesCount, user, onAccountClick }) {
             ) : (
               <button type="button" className="contact-info user-link user-button" onClick={onAccountClick}>
                 <span className="material-icons">login</span>
-                <span>??????????</span>
+                <span>Войти</span>
               </button>
             )}
           </div>

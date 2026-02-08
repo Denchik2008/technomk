@@ -62,11 +62,20 @@
   border-radius: 12px;
   backdrop-filter: blur(10px);
   transition: all 0.3s;
+  text-decoration: none;
+  color: inherit;
+  border: none;
+  cursor: pointer;
 }
 
 .hero-feature:hover {
   background: rgba(255, 255, 255, 0.15);
   transform: translateY(-4px);
+}
+
+.hero-feature:focus-visible {
+  outline: 2px solid #fdb25c;
+  outline-offset: 4px;
 }
 
 .hero-feature .material-icons {

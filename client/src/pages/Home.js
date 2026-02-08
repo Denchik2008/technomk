@@ -8,10 +8,14 @@ function Home({ addToCart, toggleFavorite, favorites }) {
   const [products, setProducts] = useState([]);
   const [hitProducts, setHitProducts] = useState([]);
   const [newProducts, setNewProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
+    fetchSubcategories();
   }, []);
 
   const fetchProducts = async () => {
@@ -28,9 +32,44 @@ function Home({ addToCart, toggleFavorite, favorites }) {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      const data = await response.json();
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    }
+  };
+
+  const fetchSubcategories = async () => {
+    try {
+      const response = await fetch('/api/subcategories');
+      const data = await response.json();
+      setSubcategories(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      setSubcategories([]);
+    }
+  };
+
   const isFavorite = (product) => {
     return favorites.some(fav => fav.id === product.id);
   };
+
+  const lower = (value) => (value || '').toString().toLowerCase();
+  const findCategoryId = (keyword) => categories.find(c => lower(c.name).includes(keyword))?.id;
+  const findSubcategoryId = (keyword) => subcategories.find(s => lower(s.name).includes(keyword))?.id;
+
+  const mkCategoryId = findCategoryId('мк');
+  const souvenirsCategoryId = findCategoryId('сувенир');
+  const culinarySubcategoryId = findSubcategoryId('кулинар');
+  const creativeSubcategoryId = findSubcategoryId('творч');
+
+  const souvenirsPath = souvenirsCategoryId ? `/category/${souvenirsCategoryId}` : '/all-products';
+  const culinaryPath = culinarySubcategoryId ? `/subcategory/${culinarySubcategoryId}/products` : (mkCategoryId ? `/category/${mkCategoryId}` : '/all-products');
+  const creativePath = creativeSubcategoryId ? `/subcategory/${creativeSubcategoryId}/products` : (mkCategoryId ? `/category/${mkCategoryId}` : '/all-products');
 
   if (loading) {
     return (
@@ -50,18 +89,18 @@ function Home({ addToCart, toggleFavorite, favorites }) {
           <h1>ТехноМиКс</h1>
           <p className="hero-subtitle">Рады видеть вас на нашем сайте!</p>
             <div className="hero-features">
-              <div className="hero-feature">
+              <Link to={souvenirsPath} className="hero-feature">
                 <span className="material-icons">card_giftcard</span>
                 <span>Заказать сувенирную продукцию</span>
-              </div>
-              <div className="hero-feature">
-                <span className="material-icons">school</span>
-                <span>Приобрести наборы для мастер-классов</span>
-              </div>
-              <div className="hero-feature">
-                <span className="material-icons">redeem</span>
-                <span>Выбрать необычные подарки</span>
-              </div>
+              </Link>
+              <Link to={culinaryPath} className="hero-feature">
+                <span className="material-icons">restaurant</span>
+                <span>Пройти кулинарные МК</span>
+              </Link>
+              <Link to={creativePath} className="hero-feature">
+                <span className="material-icons">palette</span>
+                <span>Пройти творческие МК</span>
+              </Link>
             </div>
             <p className="hero-cta">Приятных покупок!</p>
           </div>

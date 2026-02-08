@@ -122,7 +122,7 @@ function AuthModal({ onAuthSuccess, onClose }) {
     <div className="auth-modal-overlay">
       <div className="auth-modal">
         <div className="auth-modal-header">
-          <button type="button" className="auth-modal-close" onClick={handleClose} aria-label="???????">
+          <button type="button" className="auth-modal-close" onClick={handleClose} aria-label="Закрыть">
             <span className="material-icons">close</span>
           </button>
           <h2>{isLogin ? 'Вход' : 'Регистрация'}</h2>
