@@ -58,41 +58,50 @@ function Cart({ cart, updateQuantity, removeFromCart, clearCart, user }) {
     e.preventDefault();
 
     try {
-      // Создаем отдельный заказ для каждого товара
-      const orderPromises = cart.map(item => {
-        // Проверяем, требуется ли комментарий для этого конкретного товара (price_from = 1)
-        const itemNeedsComment = item.price_from === 1;
-        
-        const orderData = {
-          ...orderForm,
-          user_id: user ? user.id : null,
-          items: [{
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price
-          }],
-          total: item.price * item.quantity,
-          has_comment: itemNeedsComment ? 1 : 0,
-          status: itemNeedsComment ? 'under_review' : 'pending'
-        };
+      const hasComment = cart.some(item => item.price_from === 1);
 
-        return fetch('/api/orders', {
+      const orderData = {
+        ...orderForm,
+        user_id: user ? user.id : null,
+        items: cart.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total: totalPrice,
+        has_comment: hasComment ? 1 : 0,
+        status: hasComment ? 'under_review' : 'awaiting_payment'
+      };
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(orderData)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка при оформлении заказа');
+      }
+
+      if (!hasComment) {
+        const paymentResponse = await fetch('/api/payments/init', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(orderData)
+          body: JSON.stringify({ orderId: data.id })
         });
-      });
 
-      // Ждем когда все заказы будут созданы
-      const responses = await Promise.all(orderPromises);
-      
-      // Проверяем что все заказы успешно созданы
-      const allSuccess = responses.every(response => response.ok);
+        const paymentData = await paymentResponse.json();
 
-      if (allSuccess) {
-        setOrderSubmitted(true);
+        if (!paymentResponse.ok || !paymentData.paymentUrl) {
+          throw new Error(paymentData.error || 'Не удалось получить ссылку на оплату');
+        }
+
         clearCart();
         setOrderForm({
           customer_name: '',
@@ -101,12 +110,23 @@ function Cart({ cart, updateQuantity, removeFromCart, clearCart, user }) {
           customer_address: '',
           comment: ''
         });
-      } else {
-        alert('Ошибка при создании некоторых заказов. Попробуйте еще раз.');
+        setOrderSubmitted(true);
+        window.location.href = paymentData.paymentUrl;
+        return;
       }
+
+      setOrderSubmitted(true);
+      clearCart();
+      setOrderForm({
+        customer_name: '',
+        customer_email: '',
+        customer_phone: '',
+        customer_address: '',
+        comment: ''
+      });
     } catch (error) {
       console.error('Error submitting order:', error);
-      alert('Ошибка при оформлении заказа. Попробуйте еще раз.');
+      alert(error.message || 'Ошибка при оформлении заказа. Попробуйте еще раз.');
     }
   };
 
@@ -251,7 +271,7 @@ function Cart({ cart, updateQuantity, removeFromCart, clearCart, user }) {
                   />
                 )}
                 <button type="submit" className="btn btn-success btn-block">
-                  Подтвердить заказ
+                  Оплатить
                 </button>
                 <button
                   type="button"

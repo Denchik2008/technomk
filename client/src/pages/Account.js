@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import './Account.css';
 
 function Account({ user, setUser, favorites, toggleFavorite }) {
@@ -8,6 +8,9 @@ function Account({ user, setUser, favorites, toggleFavorite }) {
   const [orderFilter, setOrderFilter] = useState('все');
   const [activeTab, setActiveTab] = useState('orders');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const paymentStatus = new URLSearchParams(location.search).get('payment');
 
   useEffect(() => {
     if (!user) {
@@ -43,19 +46,26 @@ function Account({ user, setUser, favorites, toggleFavorite }) {
     }
 
     try {
-      const response = await fetch(`/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'pending' })
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/payments/init', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ orderId })
       });
 
-      if (response.ok) {
-        alert('Заказ оплачен! Статус изменен на "Ожидает"');
-        fetchOrders();
+      const data = await response.json();
+
+      if (!response.ok || !data.paymentUrl) {
+        throw new Error(data.error || 'Не удалось получить ссылку на оплату');
       }
+
+      window.location.href = data.paymentUrl;
     } catch (error) {
-      console.error('Error updating order:', error);
-      alert('Ошибка при обновлении заказа');
+      console.error('Error starting payment:', error);
+      alert(error.message || 'Ошибка при запуске оплаты');
     }
   };
 
@@ -146,6 +156,13 @@ function Account({ user, setUser, favorites, toggleFavorite }) {
             Выйти
           </button>
         </div>
+
+        {paymentStatus === 'success' && (
+          <div className="payment-status success">Оплата прошла успешно.</div>
+        )}
+        {paymentStatus === 'fail' && (
+          <div className="payment-status error">Ошибка оплаты. Попробуйте еще раз.</div>
+        )}
 
         <div className="account-tabs">
           <button 
@@ -247,7 +264,7 @@ function Account({ user, setUser, favorites, toggleFavorite }) {
                     <strong>Итого:</strong> {order.total} ₽
                   </div>
 
-                  {order.status === 'awaiting_payment' && (
+                  {(order.status === 'awaiting_payment' || order.status === 'under_review') && (
                     <div className="order-actions">
                       <button 
                         className="btn btn-success"

@@ -4,14 +4,44 @@ const bodyParser = require('body-parser');
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+
+// Simple .env loader for local development
+const envPath = path.join(__dirname, '../.env');
+if (fs.existsSync(envPath)) {
+  const envLines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+  envLines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      return;
+    }
+    const idx = trimmed.indexOf('=');
+    if (idx === -1) {
+      return;
+    }
+    const key = trimmed.slice(0, idx).trim();
+    let value = trimmed.slice(idx + 1).trim();
+    if ((value.startsWith(') && value.endsWith(')) || (value.startsWith(") && value.endsWith("))) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  });
+}
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 5000;
 const JWT_SECRET = 'techno_center_secret_key_2024';
+
+const TINKOFF_TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
+const TINKOFF_PASSWORD = process.env.TINKOFF_PASSWORD;
+const TINKOFF_API_BASE = process.env.TINKOFF_API_BASE || 'https://securepay.tinkoff.ru';
+const TINKOFF_NOTIFICATION_URL = process.env.TINKOFF_NOTIFICATION_URL || '';
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -71,6 +101,46 @@ const upload = multer({
     }
   }
 });
+
+const buildOrigin = (req) => {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const proto = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  return `${proto}://${host}`;
+};
+
+const generateTinkoffToken = (payload, password) => {
+  const data = {};
+  Object.keys(payload || {}).forEach((key) => {
+    if (key === 'Token') {
+      return;
+    }
+    const value = payload[key];
+    if (value === undefined || value === null) {
+      return;
+    }
+    if (typeof value === 'object') {
+      return;
+    }
+    data[key] = value;
+  });
+
+  data.Password = password;
+
+  const concatenated = Object.keys(data)
+    .sort()
+    .map((key) => String(data[key]))
+    .join('');
+
+  return crypto.createHash('sha256').update(concatenated, 'utf8').digest('hex');
+};
+
+const ensureTinkoffConfig = () => {
+  if (!TINKOFF_TERMINAL_KEY || !TINKOFF_PASSWORD) {
+    return false;
+  }
+  return true;
+};
 
 // Auth middleware
 const authenticateToken = (req, res, next) => {
@@ -396,6 +466,116 @@ app.put('/api/orders/:id/total', (req, res) => {
     res.json({ message: 'Order total updated' });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Payments API (Tinkoff Acquiring)
+app.post('/api/payments/init', async (req, res) => {
+  try {
+    if (!ensureTinkoffConfig()) {
+      return res.status(500).json({ error: 'Платежный модуль не настроен' });
+    }
+
+    const { orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ error: 'Не указан ID заказа' });
+    }
+
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Заказ не найден' });
+    }
+
+    if (!['under_review', 'awaiting_payment'].includes(order.status)) {
+      return res.status(400).json({ error: 'Оплата недоступна для этого заказа' });
+    }
+
+
+    const amount = Math.round(Number(order.total) * 100);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Некорректная сумма заказа' });
+    }
+
+    const origin = buildOrigin(req);
+    const payload = {
+      TerminalKey: TINKOFF_TERMINAL_KEY,
+      Amount: amount,
+      OrderId: String(order.id),
+      Description: `Заказ №${order.id}`,
+      SuccessURL: `${origin}/account?payment=success`,
+      FailURL: `${origin}/account?payment=fail`
+    };
+
+    if (TINKOFF_NOTIFICATION_URL) {
+      payload.NotificationURL = TINKOFF_NOTIFICATION_URL;
+    }
+
+    const token = generateTinkoffToken(payload, TINKOFF_PASSWORD);
+
+    const response = await fetch(`${TINKOFF_API_BASE}/v2/Init`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, Token: token })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data.Success === false) {
+      return res.status(502).json({
+        error: data.Message || 'Ошибка инициализации платежа',
+        details: data
+      });
+    }
+
+    if (order.status !== 'awaiting_payment' && order.status !== 'pending') {
+      db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('awaiting_payment', order.id);
+    }
+
+    res.json({
+      paymentUrl: data.PaymentURL,
+      paymentId: data.PaymentId,
+      orderId: order.id
+    });
+  } catch (error) {
+    console.error('Payment init error:', error);
+    res.status(500).json({ error: 'Ошибка инициализации платежа' });
+  }
+});
+
+app.post('/api/payments/notification', (req, res) => {
+  try {
+    if (!ensureTinkoffConfig()) {
+      return res.status(500).send('CONFIG_ERROR');
+    }
+
+    const payload = req.body || {};
+    const token = payload.Token;
+    if (!token) {
+      return res.status(400).send('NO_TOKEN');
+    }
+
+    const expectedToken = generateTinkoffToken(payload, TINKOFF_PASSWORD);
+    if (token !== expectedToken) {
+      return res.status(400).send('INVALID_TOKEN');
+    }
+
+    const orderId = payload.OrderId;
+    const status = payload.Status;
+
+    if (orderId) {
+      if (status === 'CONFIRMED' || status === 'AUTHORIZED') {
+        db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('pending', orderId);
+      }
+
+      if (status === 'REJECTED' || status === 'CANCELED' || status === 'DEADLINE_EXPIRED') {
+        db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('cancelled', orderId);
+      }
+    }
+
+    res.send('OK');
+  } catch (error) {
+    console.error('Payment notification error:', error);
+    res.status(500).send('ERROR');
   }
 });
 
