@@ -20,7 +20,7 @@ if (fs.existsSync(envPath)) {
     }
     const key = trimmed.slice(0, idx).trim();
     let value = trimmed.slice(idx + 1).trim();
-    if ((value.startsWith(') && value.endsWith(')) || (value.startsWith(") && value.endsWith("))) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
     if (process.env[key] === undefined) {
@@ -42,6 +42,7 @@ const TINKOFF_TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
 const TINKOFF_PASSWORD = process.env.TINKOFF_PASSWORD;
 const TINKOFF_API_BASE = process.env.TINKOFF_API_BASE || 'https://securepay.tinkoff.ru';
 const TINKOFF_NOTIFICATION_URL = process.env.TINKOFF_NOTIFICATION_URL || '';
+const PUBLIC_SITE_ORIGIN = (process.env.PUBLIC_SITE_ORIGIN || '').trim();
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -103,10 +104,35 @@ const upload = multer({
 });
 
 const buildOrigin = (req) => {
+  if (PUBLIC_SITE_ORIGIN) {
+    return PUBLIC_SITE_ORIGIN.replace(/\/+$/, '');
+  }
+
   const forwardedProto = req.headers['x-forwarded-proto'];
   const proto = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol;
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   return `${proto}://${host}`;
+};
+
+const MIN_TINKOFF_AMOUNT_KOPECKS = 100;
+
+const buildPaymentOrderId = (orderId) => {
+  const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  return `${orderId}-${suffix}`;
+};
+
+const parseInternalOrderId = (paymentOrderId) => {
+  const match = String(paymentOrderId || '').match(/^(\d+)/);
+  if (!match) {
+    return null;
+  }
+
+  const parsed = Number(match[1]);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
 };
 
 const generateTinkoffToken = (payload, password) => {
@@ -496,11 +522,16 @@ app.post('/api/payments/init', async (req, res) => {
       return res.status(400).json({ error: 'Некорректная сумма заказа' });
     }
 
+    if (amount < MIN_TINKOFF_AMOUNT_KOPECKS) {
+      return res.status(400).json({ error: 'Минимальная сумма оплаты - 1 рубль' });
+    }
+
+    const paymentOrderId = buildPaymentOrderId(order.id);
     const origin = buildOrigin(req);
     const payload = {
       TerminalKey: TINKOFF_TERMINAL_KEY,
       Amount: amount,
-      OrderId: String(order.id),
+      OrderId: paymentOrderId,
       Description: `Заказ №${order.id}`,
       SuccessURL: `${origin}/account?payment=success`,
       FailURL: `${origin}/account?payment=fail`
@@ -534,7 +565,8 @@ app.post('/api/payments/init', async (req, res) => {
     res.json({
       paymentUrl: data.PaymentURL,
       paymentId: data.PaymentId,
-      orderId: order.id
+      orderId: order.id,
+      paymentOrderId
     });
   } catch (error) {
     console.error('Payment init error:', error);
@@ -559,7 +591,7 @@ app.post('/api/payments/notification', (req, res) => {
       return res.status(400).send('INVALID_TOKEN');
     }
 
-    const orderId = payload.OrderId;
+    const orderId = parseInternalOrderId(payload.OrderId);
     const status = payload.Status;
 
     if (orderId) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import './Account.css';
 
-function Account({ user, setUser, favorites, toggleFavorite }) {
+function Account({ user, authHydrated, setUser, favorites, toggleFavorite }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderFilter, setOrderFilter] = useState('все');
@@ -13,12 +13,17 @@ function Account({ user, setUser, favorites, toggleFavorite }) {
   const paymentStatus = new URLSearchParams(location.search).get('payment');
 
   useEffect(() => {
+    if (!authHydrated) {
+      return;
+    }
+
     if (!user) {
       navigate('/login');
       return;
     }
+
     fetchOrders();
-  }, [user, navigate]);
+  }, [authHydrated, user, navigate]);
 
   const fetchOrders = async () => {
     try {
@@ -139,6 +144,16 @@ function Account({ user, setUser, favorites, toggleFavorite }) {
     }
     return orders;
   };
+
+  if (!authHydrated) {
+    return (
+      <div className="account-page page">
+        <div className="container">
+          <div className="loading">Загрузка...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return null;
@@ -264,7 +279,7 @@ function Account({ user, setUser, favorites, toggleFavorite }) {
                     <strong>Итого:</strong> {order.total} ₽
                   </div>
 
-                  {(order.status === 'awaiting_payment' || order.status === 'under_review') && (
+                  {order.status === 'awaiting_payment' && (
                     <div className="order-actions">
                       <button 
                         className="btn btn-success"
@@ -274,6 +289,18 @@ function Account({ user, setUser, favorites, toggleFavorite }) {
                         Оплатить
                       </button>
 
+                      <button 
+                        className="btn btn-warning" 
+                        onClick={() => handleOrderStatusSetCencelled(order.id)}
+                      >
+                        <span className="material-icons">cancel</span>
+                        Отменить
+                      </button>
+                    </div>
+                  )}
+
+                  {order.status === 'under_review' && (
+                    <div className="order-actions">
                       <button 
                         className="btn btn-warning" 
                         onClick={() => handleOrderStatusSetCencelled(order.id)}

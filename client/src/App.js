@@ -22,6 +22,7 @@ function AppContent() {
   const [cart, setCart] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [user, setUser] = useState(null);
+  const [authHydrated, setAuthHydrated] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingCartItem, setPendingCartItem] = useState(null);
 
@@ -38,6 +39,7 @@ function AppContent() {
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
+    setAuthHydrated(true);
   }, []);
 
 
@@ -137,7 +139,7 @@ function AppContent() {
         <Route path="/cart" element={<Cart cart={cart} updateQuantity={updateQuantity} removeFromCart={removeFromCart} clearCart={clearCart} user={user} />} />
         <Route path="/login" element={<Login setUser={setUser} />} />
         <Route path="/register" element={<Register setUser={setUser} />} />
-        <Route path="/account" element={<Account user={user} setUser={setUser} favorites={favorites} toggleFavorite={toggleFavorite} />} />
+        <Route path="/account" element={<Account user={user} authHydrated={authHydrated} setUser={setUser} favorites={favorites} toggleFavorite={toggleFavorite} />} />
         <Route path="/contact" element={<Contacts />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin" element={
