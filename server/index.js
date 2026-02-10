@@ -552,9 +552,13 @@ app.post('/api/payments/init', async (req, res) => {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok || data.Success === false) {
+      console.error('Tinkoff init failed', {
+        httpStatus: response.status,
+        errorCode: data.ErrorCode,
+        message: data.Message
+      });
       return res.status(502).json({
-        error: data.Message || 'Ошибка инициализации платежа',
-        details: data
+        error: data.Message || 'Ошибка инициализации платежа'
       });
     }
 
