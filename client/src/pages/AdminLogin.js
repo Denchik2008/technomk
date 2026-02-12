@@ -2,24 +2,43 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdminLogin.css';
 
-const ADMIN_PASSWORD = 'techno_center_get_money!';
-
-function AdminLogin() {
+function AdminLogin({ setUser }) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (password === ADMIN_PASSWORD) {
-      // Save authentication status
-      localStorage.setItem('adminAuthenticated', 'true');
-      localStorage.setItem('adminAuthTime', Date.now().toString());
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка входа');
+      }
+
+      if (!data.user || data.user.is_admin !== 1) {
+        throw new Error('У вас нет доступа к админ-панели');
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
       navigate('/admin');
-    } else {
-      setError('Неверный пароль!');
+    } catch (loginError) {
+      setError(loginError.message || 'Ошибка входа');
       setPassword('');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -30,10 +49,29 @@ function AdminLogin() {
           <div className="login-header">
             <span className="material-icons">admin_panel_settings</span>
             <h1>Вход в админ-панель</h1>
-            <p>Введите пароль для доступа</p>
+            <p>Войдите под учетной записью администратора</p>
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
+            <div className="form-group">
+              <label htmlFor="email">
+                <span className="material-icons">mail</span>
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError('');
+                }}
+                placeholder="example@email.com"
+                autoFocus
+                required
+              />
+            </div>
+
             <div className="form-group">
               <label htmlFor="password">
                 <span className="material-icons">lock</span>
@@ -48,7 +86,6 @@ function AdminLogin() {
                   setError('');
                 }}
                 placeholder="Введите пароль"
-                autoFocus
                 required
               />
             </div>
@@ -60,9 +97,9 @@ function AdminLogin() {
               </div>
             )}
 
-            <button type="submit" className="btn btn-primary login-btn">
+            <button type="submit" className="btn btn-primary login-btn" disabled={loading}>
               <span className="material-icons">login</span>
-              Войти
+              {loading ? 'Вход...' : 'Войти'}
             </button>
           </form>
 
@@ -79,6 +116,3 @@ function AdminLogin() {
 }
 
 export default AdminLogin;
-
-
-

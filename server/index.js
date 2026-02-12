@@ -186,6 +186,29 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const authenticateAdmin = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'РўСЂРµР±СѓРµС‚СЃСЏ Р°РІС‚РѕСЂРёР·Р°С†РёСЏ' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, payload) => {
+    if (err || !payload || !payload.id) {
+      return res.status(403).json({ error: 'РќРµРґРµР№СЃС‚РІРёС‚РµР»СЊРЅС‹Р№ С‚РѕРєРµРЅ' });
+    }
+
+    const adminUser = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(payload.id);
+    if (!adminUser || adminUser.is_admin !== 1) {
+      return res.status(403).json({ error: 'Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ' });
+    }
+
+    req.user = payload;
+    next();
+  });
+};
+
 // Database
 const db = new Database('shop.db');
 
@@ -194,6 +217,15 @@ db.pragma('encoding = "UTF-8"');
 
 // Enable foreign keys for CASCADE to work
 db.pragma('foreign_keys = ON');
+
+const hasUsersTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'").get();
+if (hasUsersTable) {
+  const usersTableColumns = db.prepare("PRAGMA table_info(users)").all();
+  const hasIsAdminColumn = usersTableColumns.some((column) => column.name === 'is_admin');
+  if (!hasIsAdminColumn) {
+    db.prepare('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0').run();
+  }
+}
 
 // Auth API
 app.post('/api/auth/register', async (req, res) => {
@@ -219,7 +251,7 @@ app.post('/api/auth/register', async (req, res) => {
     
     res.json({ 
       token, 
-      user: { id: result.lastInsertRowid, email, name }
+      user: { id: result.lastInsertRowid, email, name, is_admin: 0 }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -243,11 +275,15 @@ app.post('/api/auth/login', async (req, res) => {
     }
     
     // Generate token
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, is_admin: user.is_admin === 1 },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
     
     res.json({ 
       token, 
-      user: { id: user.id, email: user.email, name: user.name }
+      user: { id: user.id, email: user.email, name: user.name, is_admin: user.is_admin }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -256,7 +292,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
   try {
-    const user = db.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?').get(req.user.id);
+    const user = db.prepare('SELECT id, email, name, is_admin, created_at FROM users WHERE id = ?').get(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
@@ -284,7 +320,7 @@ app.get('/api/users/orders', authenticateToken, (req, res) => {
 });
 
 // Upload API
-app.post('/api/upload', upload.single('image'), (req, res) => {
+app.post('/api/upload', authenticateAdmin, upload.single('image'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Файл не загружен' });
@@ -370,7 +406,7 @@ app.get('/api/products/:id', (req, res) => {
   }
 });
 
-app.post('/api/products', (req, res) => {
+app.post('/api/products', authenticateAdmin, (req, res) => {
   try {
     const { name, price, price_from, subcategory_id, description, image, isHit, isNew } = req.body;
     const result = db.prepare(
@@ -382,7 +418,7 @@ app.post('/api/products', (req, res) => {
   }
 });
 
-app.put('/api/products/:id', (req, res) => {
+app.put('/api/products/:id', authenticateAdmin, (req, res) => {
   try {
     const { name, price, price_from, subcategory_id, description, image, isHit, isNew } = req.body;
     db.prepare(
@@ -394,7 +430,7 @@ app.put('/api/products/:id', (req, res) => {
   }
 });
 
-app.delete('/api/products/:id', (req, res) => {
+app.delete('/api/products/:id', authenticateAdmin, (req, res) => {
   try {
     db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
     res.json({ message: 'Product deleted' });
@@ -404,7 +440,7 @@ app.delete('/api/products/:id', (req, res) => {
 });
 
 // Orders API
-app.get('/api/orders', (req, res) => {
+app.get('/api/orders', authenticateAdmin, (req, res) => {
   try {
     const { status, category_id } = req.query;
     let query = 'SELECT * FROM orders';
@@ -475,7 +511,7 @@ app.post('/api/orders', (req, res) => {
   }
 });
 
-app.put('/api/orders/:id/status', (req, res) => {
+app.put('/api/orders/:id/status', authenticateAdmin, (req, res) => {
   try {
     const { status } = req.body;
     db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, req.params.id);
@@ -485,7 +521,7 @@ app.put('/api/orders/:id/status', (req, res) => {
   }
 });
 
-app.put('/api/orders/:id/total', (req, res) => {
+app.put('/api/orders/:id/total', authenticateAdmin, (req, res) => {
   try {
     const { total } = req.body;
     db.prepare('UPDATE orders SET total = ? WHERE id = ?').run(total, req.params.id);
@@ -625,7 +661,7 @@ app.get('/api/categories', (req, res) => {
   }
 });
 
-app.post('/api/categories', (req, res) => {
+app.post('/api/categories', authenticateAdmin, (req, res) => {
   try {
     const { name, description, image, has_comments } = req.body;
     const result = db.prepare('INSERT INTO categories (name, description, image, has_comments) VALUES (?, ?, ?, ?)').run(name, description || '', image || '', has_comments || 0);
@@ -635,7 +671,7 @@ app.post('/api/categories', (req, res) => {
   }
 });
 
-app.put('/api/categories/:id', (req, res) => {
+app.put('/api/categories/:id', authenticateAdmin, (req, res) => {
   try {
     const { name, description, image, has_comments } = req.body;
     db.prepare('UPDATE categories SET name = ?, description = ?, image = ?, has_comments = ? WHERE id = ?').run(name, description, image, has_comments || 0, req.params.id);
@@ -645,7 +681,7 @@ app.put('/api/categories/:id', (req, res) => {
   }
 });
 
-app.delete('/api/categories/:id', (req, res) => {
+app.delete('/api/categories/:id', authenticateAdmin, (req, res) => {
   try {
     // CASCADE will automatically delete subcategories and products
     const result = db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
@@ -679,7 +715,7 @@ app.get('/api/subcategories', (req, res) => {
   }
 });
 
-app.post('/api/subcategories', (req, res) => {
+app.post('/api/subcategories', authenticateAdmin, (req, res) => {
   try {
     const { parent_id, name, description, image } = req.body;
     const result = db.prepare('INSERT INTO subcategories (parent_id, name, description, image) VALUES (?, ?, ?, ?)').run(parent_id, name, description || '', image || '');
@@ -689,7 +725,7 @@ app.post('/api/subcategories', (req, res) => {
   }
 });
 
-app.put('/api/subcategories/:id', (req, res) => {
+app.put('/api/subcategories/:id', authenticateAdmin, (req, res) => {
   try {
     const { parent_id, name, description, image } = req.body;
     db.prepare('UPDATE subcategories SET parent_id = ?, name = ?, description = ?, image = ? WHERE id = ?').run(parent_id, name, description, image, req.params.id);
@@ -699,7 +735,7 @@ app.put('/api/subcategories/:id', (req, res) => {
   }
 });
 
-app.delete('/api/subcategories/:id', (req, res) => {
+app.delete('/api/subcategories/:id', authenticateAdmin, (req, res) => {
   try {
     // CASCADE will automatically delete products
     const result = db.prepare('DELETE FROM subcategories WHERE id = ?').run(req.params.id);

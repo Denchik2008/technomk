@@ -96,7 +96,7 @@ npm start
 - **Сайт**: http://localhost:3000
 - **API**: http://localhost:3001
 - **Админ-панель**: http://localhost:3000/admin-login
-  - Пароль: `techno_center_get_money!`
+  - Доступ только для пользователей с `is_admin = 1`
 
 ## Структура проекта
 

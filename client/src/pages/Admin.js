@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Admin.css';
 
-function Admin() {
+function Admin({ setUser }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('products');
   const [products, setProducts] = useState([]);
@@ -57,9 +57,30 @@ function Admin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderFilter, categoryFilter, activeTab]);
 
+  const adminFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = {
+      ...(options.headers || {}),
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (setUser) {
+        setUser(null);
+      }
+      navigate('/admin-login');
+      throw new Error('Доступ к админ-панели запрещен');
+    }
+
+    return response;
+  };
+
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/products');
+      const response = await adminFetch('/api/products');
       const data = await response.json();
       setProducts(data);
     } catch (error) {
@@ -69,7 +90,7 @@ function Admin() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch(`/api/orders?status=${orderFilter}&category_id=${categoryFilter}`);
+      const response = await adminFetch(`/api/orders?status=${orderFilter}&category_id=${categoryFilter}`);
       const data = await response.json();
       setOrders(data);
     } catch (error) {
@@ -79,7 +100,7 @@ function Admin() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories');
+      const response = await adminFetch('/api/categories');
       const data = await response.json();
       setCategories(data);
     } catch (error) {
@@ -97,7 +118,7 @@ function Admin() {
     // If category changed, load subcategories
     if (name === 'category_id' && value) {
       try {
-        const response = await fetch(`/api/categories/${value}/subcategories`);
+        const response = await adminFetch(`/api/categories/${value}/subcategories`);
         const data = await response.json();
         setSubcategories(data);
         newForm.subcategory_id = ''; // Reset subcategory
@@ -122,7 +143,7 @@ function Admin() {
 
     try {
       if (editingProduct) {
-        const response = await fetch(`/api/products/${editingProduct.id}`, {
+        const response = await adminFetch(`/api/products/${editingProduct.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(productData)
@@ -131,7 +152,7 @@ function Admin() {
           alert('Товар обновлен!');
         }
       } else {
-        const response = await fetch('/api/products', {
+        const response = await adminFetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(productData)
@@ -154,13 +175,13 @@ function Admin() {
     
     // Get subcategory info to determine parent category
     try {
-      const subRes = await fetch('/api/subcategories');
+      const subRes = await adminFetch('/api/subcategories');
       const subs = await subRes.json();
       const sub = subs.find(s => s.id === product.subcategory_id);
       
       if (sub) {
         // Load subcategories for this category
-        const response = await fetch(`/api/categories/${sub.parent_id}/subcategories`);
+        const response = await adminFetch(`/api/categories/${sub.parent_id}/subcategories`);
         const data = await response.json();
         setSubcategories(data);
         
@@ -189,7 +210,7 @@ function Admin() {
     }
 
     try {
-      const response = await fetch(`/api/products/${id}`, {
+      const response = await adminFetch(`/api/products/${id}`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -226,7 +247,7 @@ function Admin() {
     }
 
     try {
-      const response = await fetch(`/api/orders/${orderId}/status`, {
+      const response = await adminFetch(`/api/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -248,7 +269,7 @@ function Admin() {
     }
 
     try {
-      const response = await fetch(`/api/orders/${orderId}/total`, {
+      const response = await adminFetch(`/api/orders/${orderId}/total`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ total: parseFloat(editingTotal) })
@@ -273,7 +294,7 @@ function Admin() {
         has_comments: categoryForm.has_comments ? 1 : 0
       };
 
-      const response = await fetch('/api/categories', {
+      const response = await adminFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(categoryData)
@@ -295,7 +316,7 @@ function Admin() {
       return;
     }
     try {
-      const response = await fetch(`/api/categories/${id}`, {
+      const response = await adminFetch(`/api/categories/${id}`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -311,7 +332,7 @@ function Admin() {
   const handleManageSubcategories = async (categoryId) => {
     setManagingCategoryId(categoryId);
     try {
-      const response = await fetch(`/api/categories/${categoryId}/subcategories`);
+      const response = await adminFetch(`/api/categories/${categoryId}/subcategories`);
       const data = await response.json();
       setCategorySubcategories(data);
     } catch (error) {
@@ -322,7 +343,7 @@ function Admin() {
   const handleSubcategorySubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/subcategories', {
+      const response = await adminFetch('/api/subcategories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...subcategoryForm, parent_id: managingCategoryId })
@@ -344,7 +365,7 @@ function Admin() {
       return;
     }
     try {
-      const response = await fetch(`/api/subcategories/${id}`, {
+      const response = await adminFetch(`/api/subcategories/${id}`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -360,8 +381,11 @@ function Admin() {
 
   const handleLogout = () => {
     if (window.confirm('Вы уверены, что хотите выйти?')) {
-      localStorage.removeItem('adminAuthenticated');
-      localStorage.removeItem('adminAuthTime');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (setUser) {
+        setUser(null);
+      }
       navigate('/admin-login');
     }
   };

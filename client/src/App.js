@@ -141,10 +141,10 @@ function AppContent() {
         <Route path="/register" element={<Register setUser={setUser} />} />
         <Route path="/account" element={<Account user={user} authHydrated={authHydrated} setUser={setUser} favorites={favorites} toggleFavorite={toggleFavorite} />} />
         <Route path="/contact" element={<Contacts />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin-login" element={<AdminLogin setUser={setUser} />} />
         <Route path="/admin" element={
-          <ProtectedAdminRoute>
-            <Admin />
+          <ProtectedAdminRoute user={user} authHydrated={authHydrated}>
+            <Admin setUser={setUser} />
           </ProtectedAdminRoute>
         } />
       </Routes>
